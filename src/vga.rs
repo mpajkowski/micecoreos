@@ -29,7 +29,7 @@ pub enum Color {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ColorCode(u8);
+struct ColorCode(u8);
 
 impl ColorCode {
     pub fn new(foreground: Color, background: Color) -> ColorCode {
@@ -50,14 +50,17 @@ struct Buffer {
 
 pub struct Writer {
     column_position: usize,
+    row_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer,
 }
 
 impl Writer {
-    pub fn new(color_code: ColorCode) -> Writer {
+    pub fn new() -> Writer {
+        let color_code = ColorCode::new(Color::LightGreen, Color::Black);
         Writer {
             column_position: 0,
+            row_position: 0,
             color_code: color_code,
             buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
         }
@@ -71,7 +74,7 @@ impl Writer {
                     self.new_line();
                 }
 
-                let row = BUFFER_HEIGHT - 1;
+                let row = self.row_position;
                 let col = self.column_position;
 
                 let color_code = self.color_code;
@@ -94,14 +97,21 @@ impl Writer {
     }
 
     fn new_line(&mut self) {
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
+        let last_line = BUFFER_HEIGHT - 1;
+
+        if self.row_position != last_line {
+            self.row_position += 1;
+        } else {
+            for row in 2..BUFFER_HEIGHT {
+                for col in 0..BUFFER_WIDTH {
+                    let character = self.buffer.chars[row][col].read();
+                    self.buffer.chars[row - 1][col].write(character);
+                }
             }
         }
 
-        self.clear_row(BUFFER_HEIGHT - 1);
+        let row = self.row_position;
+        self.clear_row(row);
         self.column_position = 0;
     }
 
@@ -126,10 +136,7 @@ impl fmt::Write for Writer
 }
 
 lazy_static! {
-    pub static ref WRITER: Mutex<Writer> = Mutex::new(
-        Writer::new(
-            ColorCode::new(Color::Red, Color::Black)
-    ));
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer::new());
 }
 
 macro_rules! print {

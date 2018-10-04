@@ -21,6 +21,12 @@ fn panic(info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     use core::fmt::Write;
-    writeln!(vga::WRITER.lock(), "{}:{} Hello numbers", 14, 37).unwrap();
-    panic!("Bye!");
+    writeln!(vga::WRITER.lock(), "{}.{}.{} Mice Core OS", 0, 0, 1).unwrap();
+    writeln!(vga::WRITER.lock(), "").unwrap();
+
+    for i in 0..10000 {
+        write!(vga::WRITER.lock(), "{} ", i);
+    }
+
+    loop {}
 }
