@@ -109,7 +109,6 @@ impl Writer {
                 }
             }
         }
-
         let row = self.row_position;
         self.clear_row(row);
         self.column_position = 0;
@@ -152,4 +151,12 @@ macro_rules! println {
 pub fn print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn foo() {}
 }
