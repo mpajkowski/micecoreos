@@ -53,31 +53,12 @@ impl Buffer {
     fn update_cursor(&mut self, x: u8, y: u8) {
         let pos: u16 = y as u16 * BUFFER_WIDTH as u16 + x as u16;
 
-        let x: u8 = ((pos >> 8) & 0xFF) as u8;
-        let y: u8 = (pos as u8) & 0xFF;
-
         unsafe {
-            asm!(
-                "mov al, 0Fh
-                 mov dx, 3D4h
-                 out dx, al
-
-                 mov al, $0
-                 mov dx, 3D5h
-                 out dx, al
-
-                 mov al, 0Eh
-                 mov dx, 3D4h
-                 out dx, al
-
-                 mov al, $1
-                 mov dx, 3D5h
-                 out dx, al"
-                :
-                : "{bh}"(y), "{bl}"(x)
-                :
-                : "volatile", "intel"
-            );
+            use cpuio::outb;
+            outb(0x0F, 0x3D4);
+            outb((pos as u8) & 0xFF, 0x3D5);
+            outb(0x0E, 0x3D4);
+            outb(((pos >> 8) & 0xFF) as u8, 0x3D5);
         }
     }
 }
