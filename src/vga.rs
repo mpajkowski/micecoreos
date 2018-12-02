@@ -134,6 +134,10 @@ impl Writer {
     }
 
     fn backspace(&mut self) {
+        if self.row_position < 1 {
+            return;
+        }
+
         let blank = ScreenChar {
             ascii_char: b' ',
             color_code: self.color_code,
