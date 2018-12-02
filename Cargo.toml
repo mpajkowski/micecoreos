@@ -18,7 +18,6 @@ uart_16550 = "0.1.0"
 x86_64 = "0.3.4"
 pic8259_simple = "0.1.1"
 pc-keyboard = "0.3.1"
-cpuio = "0.2.0"
 
 [dependencies.lazy_static]
 version = "1.0"

@@ -53,12 +53,15 @@ impl Buffer {
     fn update_cursor(&mut self, x: u8, y: u8) {
         let pos: u16 = y as u16 * BUFFER_WIDTH as u16 + x as u16;
 
+        use x86_64::instructions::port::Port;
+        let mut p3d4: Port<u8> = Port::new(0x3D4);
+        let mut p3d5: Port<u8> = Port::new(0x3D5);
+
         unsafe {
-            use cpuio::outb;
-            outb(0x0F, 0x3D4);
-            outb((pos as u8) & 0xFF, 0x3D5);
-            outb(0x0E, 0x3D4);
-            outb(((pos >> 8) & 0xFF) as u8, 0x3D5);
+            p3d4.write(0x0F);
+            p3d5.write((pos as u8) & 0xFF);
+            p3d4.write(0x0E);
+            p3d5.write(((pos >> 8) & 0xFF) as u8);
         }
     }
 }
