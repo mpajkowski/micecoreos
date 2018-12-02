@@ -1,5 +1,6 @@
-use uart_16550::SerialPort;
 use spin::Mutex;
+use uart_16550::SerialPort;
+use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref SERIAL: Mutex<SerialPort> = {
@@ -9,17 +10,26 @@ lazy_static! {
     };
 }
 
-pub fn print(args: ::core::fmt::Arguments) {
-    use ::core::fmt::Write;
-    SERIAL.lock().write_fmt(args).expect("Printing to serial failed");
+pub fn _print(args: ::core::fmt::Arguments) {
+    use core::fmt::Write;
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        SERIAL
+            .lock()
+            .write_fmt(args)
+            .expect("Printing to serial failed");
+    });
 }
 
+#[macro_export]
 macro_rules! serial_print {
     ($($arg:tt)*) => {
-        $crate::serial::print(format_args!($($arg)*));
+        $crate::serial::_print(format_args!($($arg)*));
     }
 }
 
+#[macro_export]
 macro_rules! serial_println {
     () => (serial_print!("\n"));
     ($fmt:expr) => (serial_print!(concat!($fmt, "\n")));

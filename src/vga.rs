@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 
 use core::fmt;
-use volatile::Volatile;
+use lazy_static::lazy_static;
 use spin::Mutex;
+use volatile::Volatile;
 
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
@@ -10,22 +11,22 @@ const BUFFER_WIDTH: usize = 80;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Color {
-    Black      =  0,
-    Blue       =  1,
-    Green      =  2,
-    Cyan       =  3,
-    Red        =  4,
-    Magenta    =  5,
-    Brown      =  6,
-    LightGray  =  7,
-    DarkGray   =  8,
-    LightBlue  =  9,
+    Black = 0,
+    Blue = 1,
+    Green = 2,
+    Cyan = 3,
+    Red = 4,
+    Magenta = 5,
+    Brown = 6,
+    LightGray = 7,
+    DarkGray = 8,
+    LightBlue = 9,
     LightGreen = 10,
-    LightCyan  = 11,
-    LightRed   = 12,
-    Pink       = 13,
-    Yellow     = 14,
-    White      = 15,
+    LightCyan = 11,
+    LightRed = 12,
+    Pink = 13,
+    Yellow = 14,
+    White = 15,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +49,39 @@ struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
+impl Buffer {
+    fn update_cursor(&mut self, x: u8, y: u8) {
+        let pos: u16 = y as u16 * BUFFER_WIDTH as u16 + x as u16;
+
+        let x: u8 = ((pos >> 8) & 0xFF) as u8;
+        let y: u8 = (pos as u8) & 0xFF;
+
+        unsafe {
+            asm!(
+                "mov al, 0Fh
+                 mov dx, 3D4h
+                 out dx, al
+
+                 mov al, $0
+                 mov dx, 3D5h
+                 out dx, al
+
+                 mov al, 0Eh
+                 mov dx, 3D4h
+                 out dx, al
+
+                 mov al, $1
+                 mov dx, 3D5h
+                 out dx, al"
+                :
+                : "{bh}"(y), "{bl}"(x)
+                :
+                : "volatile", "intel"
+            );
+        }
+    }
+}
+
 pub struct Writer {
     column_position: usize,
     row_position: usize,
@@ -58,6 +92,7 @@ pub struct Writer {
 impl Writer {
     pub fn new() -> Writer {
         let color_code = ColorCode::new(Color::LightGreen, Color::Black);
+
         Writer {
             column_position: 0,
             row_position: 0,
@@ -90,10 +125,13 @@ impl Writer {
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
+                0x8 => self.backspace(),
                 0x20...0x7e | b'\n' => self.write_byte(byte),
                 _ => self.write_byte(0xfe),
             }
         }
+        self.buffer
+            .update_cursor(self.column_position as u8, self.row_position as u8);
     }
 
     fn new_line(&mut self) {
@@ -114,6 +152,25 @@ impl Writer {
         self.column_position = 0;
     }
 
+    fn backspace(&mut self) {
+        let blank = ScreenChar {
+            ascii_char: b' ',
+            color_code: self.color_code,
+        };
+
+        let row = self.row_position;
+        let col = self.column_position;
+
+        if self.column_position > 1 {
+            self.column_position -= 1
+        } else {
+            self.row_position -= 1;
+            self.column_position = BUFFER_WIDTH;
+        }
+
+        self.buffer.chars[row][col - 1].write(blank);
+    }
+
     fn clear_row(&mut self, row: usize) {
         let blank = ScreenChar {
             ascii_char: b' ',
@@ -126,8 +183,7 @@ impl Writer {
     }
 }
 
-impl fmt::Write for Writer
-{
+impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_string(s);
         Ok(())
@@ -138,19 +194,25 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer::new());
 }
 
+#[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga::print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::vga::_print(format_args!($($arg)*)));
 }
 
+#[macro_export]
 macro_rules! println {
     () => (print!("\n"));
     ($fmt:expr) => (print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
 
-pub fn print(args: fmt::Arguments) {
+pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    })
 }
 
 #[cfg(test)]
