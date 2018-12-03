@@ -3,7 +3,7 @@ State-of-the-art, general purpose operating system written in Rust.\
 Just following "Writing an OS in Rust" by Philipp Oppermann (right now).
 
 # Build and test
-## Needed components (assuming Arch Linux)
+## Needed components
 - Rust nightly
 ```
 git clone https://github.com/mpajkowski/micecoreos
