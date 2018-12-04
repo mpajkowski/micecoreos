@@ -19,7 +19,7 @@ pub extern "C" fn _start() -> ! {
     unsafe { PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable();
 
-    println!("{}.{}.{} Mice Core OS", 0, 0, 1);
+    println!("{}.{}.{} Mice Core OS", 0, 0, 2);
     micecoreos::hlt_loop();
 }
 

@@ -86,23 +86,22 @@ impl Writer {
     }
 
     pub fn write_byte(&mut self, byte: u8) {
-        match byte {
-            b'\n' => self.new_line(),
-            byte => {
-                if self.column_position >= BUFFER_WIDTH {
-                    self.new_line();
-                }
+        if self.column_position >= BUFFER_WIDTH {
+            self.new_line();
+        }
 
-                let row = self.row_position;
-                let col = self.column_position;
+        let row = self.row_position;
+        let col = self.column_position;
 
-                let color_code = self.color_code;
-                self.buffer.chars[row][col].write(ScreenChar {
-                    ascii_char: byte,
-                    color_code: color_code,
-                });
-                self.column_position += 1;
-            }
+        let color_code = self.color_code;
+        self.buffer.chars[row][col].write(ScreenChar {
+            ascii_char: byte,
+            color_code: color_code,
+        });
+        self.column_position += 1;
+
+        if byte == b'\n' {
+            self.new_line();
         }
     }
 
@@ -137,26 +136,26 @@ impl Writer {
     }
 
     fn backspace(&mut self) {
-        if self.row_position < 1 {
-            return;
-        }
-
         let blank = ScreenChar {
             ascii_char: b' ',
             color_code: self.color_code,
         };
 
-        let row = self.row_position;
-        let col = self.column_position;
-
-        if self.column_position > 1 {
+        if self.column_position > 0 {
             self.column_position -= 1
-        } else {
+        } else if self.row_position > 0 {
             self.row_position -= 1;
-            self.column_position = BUFFER_WIDTH;
+
+            self.column_position = BUFFER_WIDTH - 1;
+            for col in 0..BUFFER_WIDTH {
+                if self.buffer.chars[self.row_position][col].read().ascii_char == b'\n' {
+                    self.column_position = col;
+                    break;
+                }
+            }
         }
 
-        self.buffer.chars[row][col - 1].write(blank);
+        self.buffer.chars[self.row_position][self.column_position].write(blank);
     }
 
     fn clear_row(&mut self, row: usize) {
