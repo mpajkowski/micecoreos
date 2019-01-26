@@ -123,7 +123,7 @@ impl Writer {
         if self.row_position != last_line {
             self.row_position += 1;
         } else {
-            for row in 2..BUFFER_HEIGHT {
+            for row in 1..BUFFER_HEIGHT {
                 for col in 0..BUFFER_WIDTH {
                     let character = self.buffer.chars[row][col].read();
                     self.buffer.chars[row - 1][col].write(character);
